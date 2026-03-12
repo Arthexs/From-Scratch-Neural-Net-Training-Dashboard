@@ -1,0 +1,10 @@
+# Core ML / tensor stack
+torch
+torchvision
+
+# Backend
+fastapi
+uvicorn
+pydantic
+python-multipart
+websockets

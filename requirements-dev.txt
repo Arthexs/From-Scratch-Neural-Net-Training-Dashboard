@@ -1,0 +1,10 @@
+-r requirements.txt
+jupyter
+ipykernel
+ipywidgets
+pytest
+pytest-asyncio
+black
+ruff
+mypy
+numpy
