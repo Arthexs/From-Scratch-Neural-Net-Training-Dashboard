@@ -4,97 +4,54 @@ Registry for layers, losses, and optimizers.
 Implementation to be added according to project_structure.md.
 """
 
-LAYERS = {}
-LOSSES = {}
-OPTIMIZERS = {}
 
-# ----- Registry functions for layers -----
+from typing import Type, Callable, Any
 
-def register_layer(name):
-    """Decorator to register a new layer under a given name."""
-    def decorator(cls):
-        if name in LAYERS:
-            raise ValueError(f"Layer '{name}' already registered.")
-        LAYERS[name] = cls
-        return cls
-    return decorator
 
-def get_layer(name):
-    """Retrieve a registered layer by name. Raise clear KeyError if not found."""
-    if name not in LAYERS:
-        raise KeyError(
-            f"Unknown layer: '{name}'. "
-            f"Available layers: {list(LAYERS.keys())}"
-        )
-    return LAYERS[name]
-
-def layer_schemas():
+class Registry:
     """
-    Return a dict mapping layer names to their Pydantic config_model JSON schemas.
-    Assumes each layer class has a 'config_model' attribute.
+    Registry for neural network components (layers, losses, optimizers).
+    Each instance maintains its own independent registry dict.
     """
-    return {
-        name: cls.config_model.model_json_schema()
-        for name, cls in LAYERS.items()
-    }
 
-# ----- Registry functions for losses -----
+    def __init__(self, label: str) -> None:
+        self._registry: dict[str, Type] = {}
+        self.label = label
 
-def register_loss(name):
-    """Decorator to register a new loss function under a given name."""
-    def decorator(cls):
-        if name in LOSSES:
-            raise ValueError(f"Loss '{name}' already registered.")
-        LOSSES[name] = cls
-        return cls
-    return decorator
+    def register(self, name: str) -> Callable[[Type], Type]:
+        """Decorator to register a component class under a given name."""
+        def decorator(component_cls: Type) -> Type:
+            if name in self._registry:
+                raise ValueError(f"{self.label} '{name}' already registered.")
+            if not hasattr(component_cls, 'config_model'):
+                raise AttributeError(
+                    f"{self.label} class '{component_cls.__name__}' must define a 'config_model'."
+                )
+            self._registry[name] = component_cls
+            return component_cls
+        return decorator
 
-def get_loss(name):
-    """Retrieve a registered loss by name. Raise clear KeyError if not found."""
-    if name not in LOSSES:
-        raise KeyError(
-            f"Unknown loss: '{name}'. "
-            f"Available losses: {list(LOSSES.keys())}"
-        )
-    return LOSSES[name]
+    def get(self, name: str) -> Type:
+        """Retrieve a registered component by name."""
+        if name not in self._registry:
+            raise KeyError(
+                f"Unknown {self.label}: '{name}'. "
+                f"Available: {list(self._registry.keys())}"
+            )
+        return self._registry[name]
 
-def loss_schemas():
-    """
-    Return a dict mapping loss names to their Pydantic config_model JSON schemas.
-    Assumes each loss class has a 'config_model' attribute.
-    """
-    return {
-        name: cls.config_model.model_json_schema()
-        for name, cls in LOSSES.items()
-    }
+    def schemas(self) -> dict[str, dict[str, Any]]:
+        """Return a dict mapping names to their Pydantic config_model JSON schemas."""
+        return {
+            name: component_cls.config_model.model_json_schema()
+            for name, component_cls in self._registry.items()
+        }
 
-# ----- Registry functions for optimizers -----
+    def keys(self) -> list[str]:
+        """Return all registered names."""
+        return list(self._registry.keys())
 
-def register_optimizer(name):
-    """Decorator to register a new optimizer under a given name."""
-    def decorator(cls):
-        if name in OPTIMIZERS:
-            raise ValueError(f"Optimizer '{name}' already registered.")
-        OPTIMIZERS[name] = cls
-        return cls
-    return decorator
 
-def get_optimizer(name):
-    """Retrieve a registered optimizer by name. Raise clear KeyError if not found."""
-    if name not in OPTIMIZERS:
-        raise KeyError(
-            f"Unknown optimizer: '{name}'. "
-            f"Available optimizers: {list(OPTIMIZERS.keys())}"
-        )
-    return OPTIMIZERS[name]
-
-def optimizer_schemas():
-    """
-    Return a dict mapping optimizer names to their Pydantic config_model JSON schemas.
-    Assumes each optimizer class has a 'config_model' attribute.
-    """
-    return {
-        name: cls.config_model.model_json_schema()
-        for name, cls in OPTIMIZERS.items()
-    }
-
+LAYERS     = Registry("Layer")
+LOSSES     = Registry("Loss")
+OPTIMIZERS = Registry("Optimizer")
