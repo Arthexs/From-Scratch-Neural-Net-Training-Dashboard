@@ -21,8 +21,7 @@ training-dashboard/
 ├── model/
 │   ├── __init__.py                  # Imports all submodules to trigger @register decorators
 │   ├── registry.py                  # Separate dicts: LAYERS / LOSSES / OPTIMIZERS
-│   │                                #   + register_layer / register_loss / register_optimizer
-│   │                                #   + get_layer(name) / get_all_schemas() safe lookups
+│   │                                #   each one has .registry .get .schemas and .keys
 │   ├── configs.py                   # All Pydantic config models in one place
 │   │                                #   Conv2DConfig, DenseConfig, AdamConfig, SGDConfig, etc.
 │   │                                #   Field constraints (gt=0, must_be_odd validators, etc.)
@@ -143,7 +142,7 @@ Frontend (React)
 ### Saturday Morning — The Model
 Write this yourself, use Cursor only to check/refine:
 1. `training/device.py` — one-liner, sets the GPU mindset from the start
-2. `model/registry.py` — three dicts, three decorators, safe lookup functions
+2. `model/registry.py` — three dicts, decorators, safe lookup functions
 3. `model/configs.py` — Pydantic models for Dense, Conv2D, SGD, Adam, CrossEntropy
 4. `model/activations.py` — simplest tensor ops, register each one
 5. `model/layers.py` — Dense first (`torch.matmul`), then Conv2D; attach `config_model`
