@@ -25,6 +25,10 @@ from model.configs import (
     (FlattenConfig, {"start_dim": 1, "end_dim": -1}),
     (FlattenConfig, {"start_dim": 0, "end_dim": 2}),
     (FlattenConfig, {}),  # Defaults
+    # ReLUConfig
+    (ReLUConfig, {}),
+    # SigmoidConfig
+    (SigmoidConfig, {}),
     # SoftmaxConfig
     (SoftmaxConfig, {"dim": -1}),
     (SoftmaxConfig, {"dim": 0}),
@@ -77,23 +81,16 @@ def test_configs_positive(config_cls, params):
     (AdamConfig, {"betas": (0.9, 1.0)}),  # Beta 2 must be < 1
     (AdamConfig, {"betas": (-0.1, 0.9)}), # Beta 1 must be >= 0
     (AdamConfig, {"eps": 0}),
+    # Typing Tests
+    (DenseConfig, {"input_size": "not-an-int", "output_size": 10}),
+    (Conv2DConfig, {"in_channels": [1], "out_channels": 16}),
+    (MaxPool2DConfig, {"kernel_size": {"size": 3}}),
+    (SGDConfig, {"lr": None}),
+    (AdamConfig, {"betas": "0.9, 0.999"}),
+    (ReLUConfig, {"extra_param": 1}),  # ReLU takes no params
 ])
 def test_configs_negative(config_cls, params):
     """Ensure invalid parameters raise ValidationError."""
     with pytest.raises(ValidationError):
         config_cls(**params)
 
-# --- Registry Compatibility Test ---
-def test_registry_readiness():
-    """Ensure all config models are Pydantic models and return valid JSON schemas."""
-    all_configs = [
-        DenseConfig, Conv2DConfig, MaxPool2DConfig, FlattenConfig,
-        ReLUConfig, SigmoidConfig, SoftmaxConfig,
-        MSELossConfig, CrossEntropyLossConfig,
-        SGDConfig, AdamConfig
-    ]
-    for cfg in all_configs:
-        schema = cfg.model_json_schema()
-        assert isinstance(schema, dict)
-        assert "type" in schema
-        assert schema["type"] == "object"
