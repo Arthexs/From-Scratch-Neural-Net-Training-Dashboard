@@ -5,7 +5,6 @@ To be implemented.
 """
 
 
-import pytest
 from pydantic import ValidationError
 from model.configs import (
     DenseConfig, Conv2DConfig, MaxPool2DConfig, FlattenConfig,
