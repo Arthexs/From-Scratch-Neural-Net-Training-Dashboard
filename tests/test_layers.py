@@ -1,11 +1,24 @@
 """
-Tests for Dense and Flatten layer forward and backward passes,
+Tests for Dense, Flatten, and Conv2D layer forward and backward passes,
 compared against torch.nn reference implementations.
 """
 
+import time
 import torch
 import pytest
-from model.layers import Dense, Flatten
+from model.layers import Dense, Flatten, Conv2D
+
+
+WARMUP_ITERS = 10
+BENCH_ITERS  = 50
+
+
+def bench(fn, iters: int) -> float:
+    """Return mean wall-clock time in ms over `iters` calls."""
+    start = time.perf_counter()
+    for _ in range(iters):
+        fn()
+    return (time.perf_counter() - start) / iters * 1000
 
 
 # ── Dense ──────────────────────────────────────────────────────────────────────
@@ -169,3 +182,57 @@ def test_flatten_backward_values(x, start_dim, end_dim):
 
 def test_flatten_no_parameters():
     assert Flatten().parameters() == []
+
+
+# ── Conv2D performance ─────────────────────────────────────────────────────────
+
+CONV_PERF_CASES = [
+    pytest.param(dict(N=1,  Cin=1,   H=28,  W=28,  Cout=8,   K=3, S=1, P=1), id="mnist-like"),
+    pytest.param(dict(N=8,  Cin=3,   H=32,  W=32,  Cout=16,  K=3, S=1, P=1), id="cifar-like"),
+    pytest.param(dict(N=8,  Cin=16,  H=32,  W=32,  Cout=32,  K=3, S=1, P=1), id="mid-depth"),
+    pytest.param(dict(N=8,  Cin=32,  H=16,  W=16,  Cout=64,  K=3, S=1, P=1), id="deep-small-spatial"),
+    pytest.param(dict(N=4,  Cin=3,   H=64,  W=64,  Cout=16,  K=5, S=1, P=2), id="larger-input-k5"),
+    pytest.param(dict(N=4,  Cin=3,   H=64,  W=64,  Cout=16,  K=3, S=2, P=1), id="strided"),
+]
+
+
+def make_ref_conv(layer: Conv2D) -> torch.nn.Conv2d:
+    """Build a torch.nn.Conv2d with identical weights to our Conv2D layer."""
+    Cout, Cin, Kh, _ = layer.W.shape
+    ref = torch.nn.Conv2d(Cin, Cout, kernel_size=Kh, stride=layer.stride, padding=layer.padding, bias=layer.bias)
+    with torch.no_grad():
+        ref.weight.copy_(layer.W)
+        if layer.bias:
+            ref.bias.copy_(layer.b)
+    return ref
+
+
+@pytest.mark.parametrize("cfg", CONV_PERF_CASES)
+def test_conv2d_forward_perf(cfg, capsys):
+    N, Cin, H, W = cfg["N"], cfg["Cin"], cfg["H"], cfg["W"]
+    Cout, K, S, P = cfg["Cout"], cfg["K"], cfg["S"], cfg["P"]
+
+    x     = torch.randn(N, Cin, H, W)
+    layer = Conv2D(in_channels=Cin, out_channels=Cout, kernel_size=K, stride=S, padding=P)
+    ref   = make_ref_conv(layer)
+
+    # correctness
+    with torch.no_grad():
+        assert torch.allclose(layer.forward(x), ref(x), atol=1e-5)
+
+    # warm-up
+    for _ in range(WARMUP_ITERS):
+        layer.forward(x)
+        ref(x)
+
+    our_ms   = bench(lambda: layer.forward(x), BENCH_ITERS)
+    torch_ms = bench(lambda: ref(x),           BENCH_ITERS)
+    ratio    = our_ms / torch_ms
+
+    with capsys.disabled():
+        print(
+            f"\n  {cfg}\n"
+            f"    ours:  {our_ms:.3f} ms/iter\n"
+            f"    torch: {torch_ms:.3f} ms/iter\n"
+            f"    ratio: {ratio:.1f}x slower"
+        )
