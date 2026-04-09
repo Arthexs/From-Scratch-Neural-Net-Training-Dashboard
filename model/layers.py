@@ -7,7 +7,7 @@ To be implemented using raw torch.Tensor operations, without torch.nn.
 
 import torch
 from model.registry import LAYERS
-from model.configs import DenseConfig, FlattenConfig, Conv2DConfig
+from model.configs import DenseConfig, FlattenConfig, Conv2DConfig, MaxPool2DConfig
 
 
 class Layer:
@@ -154,6 +154,46 @@ class Conv2D(Layer):
         return [self.W, self.b] if self.bias else [self.W]
 
 
+@LAYERS.register("maxpool2d")
+class MaxPool2D(Layer):
+    config_model = MaxPool2DConfig
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        N, C, H, W = x.shape
+        K = self.kernel_size
+
+        Oh = (H + 2*self.padding - K) // self.stride + 1
+        Ow = (W + 2*self.padding - K) // self.stride + 1
+
+        # (N, C*K*K, Oh*Ow) → (N, C, K*K, Oh*Ow) → max over window axis
+        x_unfolded = torch.nn.functional.unfold(
+            x, kernel_size=K, padding=self.padding, stride=self.stride
+        )
+        x_max, x_argmax = x_unfolded.view(N, C, K*K, Oh*Ow).max(dim=2)
+
+        self._x_argmax = x_argmax  # (N, C, Oh*Ow) — needed by backward
+        self._input_hw = (H, W)
+
+        return x_max.view(N, C, Oh, Ow)
+
+    def backward(self, grad: torch.Tensor) -> torch.Tensor:
+        N, C, Oh, Ow = grad.shape
+        H, W = self._input_hw
+        K = self.kernel_size
+
+        # Scatter upstream grad to argmax positions: (N, C, K*K, Oh*Ow)
+        dx = torch.zeros(N, C, K*K, Oh*Ow, dtype=grad.dtype, device=grad.device)
+        dx.scatter_(2, self._x_argmax.unsqueeze(2), grad.reshape(N, C, -1).unsqueeze(2))
+
+        # Fold back to input shape (N, C, H, W)
+        return torch.nn.functional.fold(
+            dx.view(N, C*K*K, Oh*Ow),
+            output_size=(H, W),
+            kernel_size=K,
+            padding=self.padding,
+            stride=self.stride
+        )
+
 @LAYERS.register("flatten")
 class Flatten(Layer):
     config_model = FlattenConfig
@@ -164,3 +204,4 @@ class Flatten(Layer):
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
         return grad.view(self._input_shape)
+    

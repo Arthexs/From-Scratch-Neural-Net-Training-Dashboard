@@ -18,6 +18,7 @@ class DenseConfig(BaseConfig):
     input_size: int = Field(..., gt=0, description="Number of input features")
     output_size: int = Field(..., gt=0, description="Number of output features")
     bias: bool = Field(default=True, description="Add a learnable bias to the output")
+    initializer: Literal["xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"] = Field(default="xavier_uniform", description="Weight initialization method")
 
 class Conv2DConfig(BaseConfig):
     in_channels: int = Field(..., gt=0, description="Number of input channels")
@@ -26,6 +27,7 @@ class Conv2DConfig(BaseConfig):
     stride: int = Field(default=1, gt=0, description="Stride of the convolutional operation")
     padding: int = Field(default=0, ge=0, description="Padding of the convolutional operation")
     bias: bool = Field(default=True, description="Add a learnable bias to the output")
+    initializer: Literal["xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"] = Field(default="kaiming_uniform", description="Weight initialization method")
 
     @field_validator('kernel_size')
     @classmethod

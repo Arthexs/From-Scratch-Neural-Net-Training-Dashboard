@@ -6,7 +6,7 @@ compared against torch.nn reference implementations.
 import time
 import torch
 import pytest
-from model.layers import Dense, Flatten, Conv2D
+from model.layers import Dense, Flatten, Conv2D, MaxPool2D
 
 
 WARMUP_ITERS = 10
@@ -182,6 +182,42 @@ def test_flatten_backward_values(x, start_dim, end_dim):
 
 def test_flatten_no_parameters():
     assert Flatten().parameters() == []
+
+
+# ── MaxPool2D smoke ────────────────────────────────────────────────────────────
+
+def test_maxpool2d_forward_smoke():
+    x     = torch.randn(2, 3, 8, 8)
+    layer = MaxPool2D(kernel_size=2, stride=2, padding=0)
+    ref   = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+
+    out = layer.forward(x)
+
+    print(f"input:    {x.shape}")
+    print(f"output:   {out.shape}")
+    print(f"expected: {ref(x).shape}")
+
+    assert out.shape == ref(x).shape
+    assert torch.allclose(out, ref(x), atol=1e-6)
+
+
+def test_maxpool2d_backward_smoke():
+    x     = torch.randn(2, 3, 8, 8)
+    layer = MaxPool2D(kernel_size=2, stride=2, padding=0)
+    ref   = torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+
+    out  = layer.forward(x)
+    grad = torch.ones_like(out)
+    dx   = layer.backward(grad)
+
+    x_ref = x.clone().requires_grad_(True)
+    ref(x_ref).backward(torch.ones_like(out))
+
+    print(f"dx:       {dx.shape}")
+    print(f"expected: {x_ref.grad.shape}")
+
+    assert dx.shape == x.shape
+    assert torch.allclose(dx, x_ref.grad, atol=1e-6)
 
 
 # ── Conv2D performance ─────────────────────────────────────────────────────────
