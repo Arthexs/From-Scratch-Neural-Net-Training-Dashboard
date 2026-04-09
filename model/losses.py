@@ -6,9 +6,11 @@ To be implemented without torch.nn loss modules.
 
 import torch
 from model.layers import Layer
+from model.registry import LOSSES
 from model.configs import MSELossConfig, CrossEntropyLossConfig
 
 
+@LOSSES.register("mse")
 class MSELoss(Layer):
     config_model = MSELossConfig
 
@@ -31,6 +33,7 @@ class MSELoss(Layer):
         return loss  # "none"
 
 
+@LOSSES.register("bce")
 class BCELoss(Layer):
     """Binary cross-entropy loss with sigmoid baked in (BCEWithLogits).
 
