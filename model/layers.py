@@ -4,10 +4,10 @@ Layer base class and concrete layer implementations (Dense, Conv2D, MaxPool, Fla
 To be implemented using raw torch.Tensor operations, without torch.nn.
 """
 
-
 import torch
+
+from model.configs import Conv2DConfig, DenseConfig, FlattenConfig, MaxPool2DConfig
 from model.registry import LAYERS
-from model.configs import DenseConfig, FlattenConfig, Conv2DConfig, MaxPool2DConfig
 
 
 class Layer:
@@ -35,10 +35,10 @@ class Layer:
 
 
 _INITIALIZERS = {
-    "xavier_uniform":  torch.nn.init.xavier_uniform_,
-    "xavier_normal":   torch.nn.init.xavier_normal_,
+    "xavier_uniform": torch.nn.init.xavier_uniform_,
+    "xavier_normal": torch.nn.init.xavier_normal_,
     "kaiming_uniform": torch.nn.init.kaiming_uniform_,
-    "kaiming_normal":  torch.nn.init.kaiming_normal_,
+    "kaiming_normal": torch.nn.init.kaiming_normal_,
 }
 
 
@@ -67,10 +67,10 @@ class Dense(Layer):
         return out
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
-        self.W.grad = torch.matmul(self._x.T, grad)          # (input_size, output_size)
+        self.W.grad = torch.matmul(self._x.T, grad)  # (input_size, output_size)
         if self.bias:
-            self.b.grad = grad.sum(dim=0)                     # (output_size,)
-        return torch.matmul(grad, self.W.T)                   # (batch, input_size)
+            self.b.grad = grad.sum(dim=0)  # (output_size,)
+        return torch.matmul(grad, self.W.T)  # (batch, input_size)
 
     def parameters(self) -> list[torch.Tensor]:
         return [self.W, self.b] if self.bias else [self.W]
@@ -96,7 +96,9 @@ class Conv2D(Layer):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.W = torch.empty(self.out_channels, self.in_channels, self.kernel_size, self.kernel_size)
+        self.W = torch.empty(
+            self.out_channels, self.in_channels, self.kernel_size, self.kernel_size
+        )
         _INITIALIZERS[self.initializer](self.W)
         self.b = torch.zeros(self.out_channels) if self.bias else None
 
@@ -131,7 +133,7 @@ class Conv2D(Layer):
         _, Cin, Kh, Kw = self.W.shape
 
         grad_flat = grad.view(N, Cout, -1)  # (N, Cout, Oh*Ow)
-        W_col = self.W.view(Cout, -1)       # (Cout, Cin*Kh*Kw)
+        W_col = self.W.view(Cout, -1)  # (Cout, Cin*Kh*Kw)
 
         # (N, Cout, Oh*Ow) @ (N, Oh*Ow, Cin*Kh*Kw) → (N, Cout, Cin*Kh*Kw) → sum over batch
         dW_col = torch.matmul(grad_flat, self._x_unfolded.transpose(1, 2)).sum(dim=0)
@@ -140,14 +142,15 @@ class Conv2D(Layer):
         if self.bias:
             self.b.grad = grad.sum(dim=(0, 2, 3))  # (Cout,)
 
-        # (Cin*Kh*Kw, Cout) @ (N, Cout, Oh*Ow) → (N, Cin*Kh*Kw, Oh*Ow), then fold back to (N, Cin, H, W)
+        # (Cin*Kh*Kw, Cout) @ (N, Cout, Oh*Ow) → (N, Cin*Kh*Kw, Oh*Ow),
+        # then fold back to (N, Cin, H, W)
         dx_unfolded = torch.matmul(W_col.T, grad_flat)
         return torch.nn.functional.fold(
             dx_unfolded,
             output_size=self._input_hw,
             kernel_size=(Kh, Kw),
             stride=self.stride,
-            padding=self.padding
+            padding=self.padding,
         )
 
     def parameters(self) -> list[torch.Tensor]:
@@ -162,14 +165,14 @@ class MaxPool2D(Layer):
         N, C, H, W = x.shape
         K = self.kernel_size
 
-        Oh = (H + 2*self.padding - K) // self.stride + 1
-        Ow = (W + 2*self.padding - K) // self.stride + 1
+        Oh = (H + 2 * self.padding - K) // self.stride + 1
+        Ow = (W + 2 * self.padding - K) // self.stride + 1
 
         # (N, C*K*K, Oh*Ow) → (N, C, K*K, Oh*Ow) → max over window axis
         x_unfolded = torch.nn.functional.unfold(
             x, kernel_size=K, padding=self.padding, stride=self.stride
         )
-        x_max, x_argmax = x_unfolded.view(N, C, K*K, Oh*Ow).max(dim=2)
+        x_max, x_argmax = x_unfolded.view(N, C, K * K, Oh * Ow).max(dim=2)
 
         self._x_argmax = x_argmax  # (N, C, Oh*Ow) — needed by backward
         self._input_hw = (H, W)
@@ -182,17 +185,18 @@ class MaxPool2D(Layer):
         K = self.kernel_size
 
         # Scatter upstream grad to argmax positions: (N, C, K*K, Oh*Ow)
-        dx = torch.zeros(N, C, K*K, Oh*Ow, dtype=grad.dtype, device=grad.device)
+        dx = torch.zeros(N, C, K * K, Oh * Ow, dtype=grad.dtype, device=grad.device)
         dx.scatter_(2, self._x_argmax.unsqueeze(2), grad.reshape(N, C, -1).unsqueeze(2))
 
         # Fold back to input shape (N, C, H, W)
         return torch.nn.functional.fold(
-            dx.view(N, C*K*K, Oh*Ow),
+            dx.view(N, C * K * K, Oh * Ow),
             output_size=(H, W),
             kernel_size=K,
             padding=self.padding,
-            stride=self.stride
+            stride=self.stride,
         )
+
 
 @LAYERS.register("flatten")
 class Flatten(Layer):
@@ -204,4 +208,3 @@ class Flatten(Layer):
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
         return grad.view(self._input_shape)
-    

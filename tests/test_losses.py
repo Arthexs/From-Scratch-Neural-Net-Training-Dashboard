@@ -3,10 +3,10 @@ Tests for MSELoss and BCELoss forward and backward passes,
 compared against torch.nn reference implementations.
 """
 
-import torch
 import pytest
-from model.losses import MSELoss, BCELoss
+import torch
 
+from model.losses import BCELoss, MSELoss
 
 # ── shared fixtures ────────────────────────────────────────────────────────────
 
@@ -15,17 +15,17 @@ REDUCTIONS = ["mean", "sum", "none"]
 INPUT_CASES = [
     pytest.param(
         torch.tensor([0.5, 1.5, -0.5, 2.0]),
-        torch.tensor([0.0, 1.0,  0.0, 1.0]),
+        torch.tensor([0.0, 1.0, 0.0, 1.0]),
         id="1d-4elem",
     ),
     pytest.param(
         torch.tensor([[0.2, 0.8], [1.5, -1.0]]),
-        torch.tensor([[0.0, 1.0], [1.0,  0.0]]),
+        torch.tensor([[0.0, 1.0], [1.0, 0.0]]),
         id="2d-2x2",
     ),
     pytest.param(
         torch.tensor([[2.0, -2.0, 0.0], [-1.0, 1.0, 3.0]]),
-        torch.tensor([[1.0,  0.0, 0.0], [ 0.0, 1.0, 1.0]]),
+        torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]]),
         id="2d-2x3",
     ),
     pytest.param(
@@ -37,6 +37,7 @@ INPUT_CASES = [
 
 
 # ── MSELoss ────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("reduction", REDUCTIONS)
 @pytest.mark.parametrize("x,y", INPUT_CASES)
@@ -61,6 +62,7 @@ def test_mse_backward(x, y, reduction):
 
 
 # ── BCELoss ────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("reduction", REDUCTIONS)
 @pytest.mark.parametrize("x,y", INPUT_CASES)

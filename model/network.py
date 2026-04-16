@@ -3,6 +3,7 @@ Network class that composes a list of Layer instances.
 """
 
 import torch
+
 from model.layers import Layer
 from model.registry import LAYERS
 
@@ -46,7 +47,7 @@ class Network:
         """
         layers = []
         for cfg in config:
-            cfg        = dict(cfg)
+            cfg = dict(cfg)
             layer_type = cfg.pop("type")
             layers.append(LAYERS.get(layer_type)(**cfg))
         return cls(layers)
@@ -56,10 +57,10 @@ class Network:
 
         rows = []
         for layer in self.layers:
-            in_shape  = tuple(x.shape[1:])
-            x         = layer.forward(x)
+            in_shape = tuple(x.shape[1:])
+            x = layer.forward(x)
             out_shape = tuple(x.shape[1:])
-            n_params  = sum(p.numel() for p in layer.parameters())
+            n_params = sum(p.numel() for p in layer.parameters())
             rows.append((type(layer).__name__, in_shape, out_shape, n_params))
 
         total = sum(r[3] for r in rows)
@@ -69,11 +70,21 @@ class Network:
             for i, h in enumerate(("Layer", "Input", "Output", "Params"))
         ]
 
-        header = f"{'Layer':<{col_w[0]}}  {'Input':<{col_w[1]}}  {'Output':<{col_w[2]}}  {'Params':>{col_w[3]}}"
+        header = (
+            f"{'Layer':<{col_w[0]}}  "
+            f"{'Input':<{col_w[1]}}  "
+            f"{'Output':<{col_w[2]}}  "
+            f"{'Params':>{col_w[3]}}"
+        )
         divider = "─" * len(header)
         print(header)
         print(divider)
         for name, in_shape, out_shape, n_params in rows:
-            print(f"{name:<{col_w[0]}}  {str(in_shape):<{col_w[1]}}  {str(out_shape):<{col_w[2]}}  {n_params:>{col_w[3]},}")
+            print(
+                f"{name:<{col_w[0]}}  "
+                f"{str(in_shape):<{col_w[1]}}  "
+                f"{str(out_shape):<{col_w[2]}}  "
+                f"{n_params:>{col_w[3]},}"
+            )
         print(divider)
         print(f"{'Total':>{len(header) - len(f'{total:,}') - 2}}  {total:,}")

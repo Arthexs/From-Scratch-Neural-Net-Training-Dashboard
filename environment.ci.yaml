@@ -1,0 +1,22 @@
+name: nn_ci
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pytorch=2.5.1
+  - torchvision=0.20.1
+  - cpuonly
+  - numpy>=2.0
+  - pytest
+  - pip
+  - pip:
+      - pydantic>=2.0
+      - pytest-asyncio
+      - fastapi
+      - uvicorn
+      - httpx
+      - python-dotenv
+      - ruff
+      - mypy

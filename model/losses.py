@@ -5,9 +5,10 @@ To be implemented without torch.nn loss modules.
 """
 
 import torch
+
+from model.configs import CrossEntropyLossConfig, MSELossConfig
 from model.layers import Layer
 from model.registry import LOSSES
-from model.configs import MSELossConfig, CrossEntropyLossConfig
 
 
 @LOSSES.register("mse")
@@ -50,11 +51,7 @@ class BCELoss(Layer):
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         self._sig = torch.special.expit(x)
         self._y = y
-        loss = (
-            torch.clamp(x, min=0)
-            - torch.mul(x, y)
-            + torch.log1p(torch.exp(-torch.abs(x)))
-        )
+        loss = torch.clamp(x, min=0) - torch.mul(x, y) + torch.log1p(torch.exp(-torch.abs(x)))
         return self._reduce(loss)
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:

@@ -2,22 +2,26 @@
 Tests for activation layer forward and backward passes (ReLU, Sigmoid, Softmax).
 """
 
-import torch
 import pytest
+import torch
+
 from model.activations import ReLU, Sigmoid, Softmax
 
-
 ACTIVATION_CASES = [
-    pytest.param(ReLU,  torch.nn.functional.relu, torch.tensor([-1.0, 0.0, 1.0, 2.0]),  id="relu-mixed"),
-    pytest.param(ReLU,  torch.nn.functional.relu, torch.tensor([-3.0, -0.5, 0.0]),       id="relu-negative"),
-    pytest.param(Sigmoid, torch.sigmoid,           torch.tensor([-2.0, 0.0, 0.5, 2.0]), id="sigmoid-mixed"),
-    pytest.param(Sigmoid, torch.sigmoid,           torch.tensor([0.0]),                  id="sigmoid-zero"),
+    pytest.param(
+        ReLU, torch.nn.functional.relu, torch.tensor([-1.0, 0.0, 1.0, 2.0]), id="relu-mixed"
+    ),
+    pytest.param(
+        ReLU, torch.nn.functional.relu, torch.tensor([-3.0, -0.5, 0.0]), id="relu-negative"
+    ),
+    pytest.param(Sigmoid, torch.sigmoid, torch.tensor([-2.0, 0.0, 0.5, 2.0]), id="sigmoid-mixed"),
+    pytest.param(Sigmoid, torch.sigmoid, torch.tensor([0.0]), id="sigmoid-zero"),
 ]
 
 SOFTMAX_CASES = [
-    pytest.param(torch.tensor([1.0, 2.0, 3.0]),          -1, id="softmax-1d"),
+    pytest.param(torch.tensor([1.0, 2.0, 3.0]), -1, id="softmax-1d"),
     pytest.param(torch.tensor([[1.0, 2.0], [3.0, 4.0]]), -1, id="softmax-2d-last-dim"),
-    pytest.param(torch.tensor([[1.0, 2.0], [3.0, 4.0]]),  0, id="softmax-2d-first-dim"),
+    pytest.param(torch.tensor([[1.0, 2.0], [3.0, 4.0]]), 0, id="softmax-2d-first-dim"),
     pytest.param(torch.tensor([1000.0, 1001.0, 1002.0]), -1, id="softmax-large-values"),
 ]
 

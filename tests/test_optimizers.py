@@ -5,23 +5,24 @@ Each optimizer is compared against its torch.optim counterpart over
 single and multiple steps with various hyperparameter configurations.
 """
 
-import torch
 import pytest
-from model.optimizers import Optimizer, SGD, Adam
+import torch
 
+from model.optimizers import SGD, Adam, Optimizer
 
 # ── helpers ────────────────────────────────────────────────────────────────────
+
 
 def make_params(tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Return two identical leaf tensors (ours, reference)."""
     p_ours = tensor.clone().requires_grad_(False)  # we set .grad manually
-    p_ref  = tensor.clone().requires_grad_(True)
+    p_ref = tensor.clone().requires_grad_(True)
     return p_ours, p_ref
 
 
 def set_grads(p_ours: torch.Tensor, p_ref: torch.Tensor, grad: torch.Tensor) -> None:
     p_ours.grad = grad.clone()
-    p_ref.grad  = grad.clone()
+    p_ref.grad = grad.clone()
 
 
 # ── shared fixtures ────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ def set_grads(p_ours: torch.Tensor, p_ref: torch.Tensor, grad: torch.Tensor) -> 
 STEP_CASES = [
     pytest.param(
         torch.tensor([1.0, -2.0, 0.5]),
-        torch.tensor([0.1, -0.3,  0.2]),
+        torch.tensor([0.1, -0.3, 0.2]),
         id="1d-mixed",
     ),
     pytest.param(
@@ -51,22 +52,23 @@ STEP_CASES = [
 ]
 
 SGD_CONFIG_CASES = [
-    pytest.param(dict(lr=0.1),                                          id="vanilla"),
-    pytest.param(dict(lr=0.01, momentum=0.9),                           id="momentum"),
-    pytest.param(dict(lr=0.1,  weight_decay=0.01),                      id="weight_decay"),
-    pytest.param(dict(lr=0.01, momentum=0.9, weight_decay=0.001),       id="full"),
+    pytest.param(dict(lr=0.1), id="vanilla"),
+    pytest.param(dict(lr=0.01, momentum=0.9), id="momentum"),
+    pytest.param(dict(lr=0.1, weight_decay=0.01), id="weight_decay"),
+    pytest.param(dict(lr=0.01, momentum=0.9, weight_decay=0.001), id="full"),
 ]
 
 ADAM_CONFIG_CASES = [
-    pytest.param(dict(lr=0.1),                                          id="default"),
-    pytest.param(dict(lr=0.01, betas=(0.9, 0.999), eps=1e-8),          id="standard"),
-    pytest.param(dict(lr=0.1,  betas=(0.8, 0.99)),                      id="low-betas"),
-    pytest.param(dict(lr=0.001, weight_decay=0.01),                     id="weight_decay"),
+    pytest.param(dict(lr=0.1), id="default"),
+    pytest.param(dict(lr=0.01, betas=(0.9, 0.999), eps=1e-8), id="standard"),
+    pytest.param(dict(lr=0.1, betas=(0.8, 0.99)), id="low-betas"),
+    pytest.param(dict(lr=0.001, weight_decay=0.01), id="weight_decay"),
     pytest.param(dict(lr=0.01, betas=(0.9, 0.999), weight_decay=0.001), id="full"),
 ]
 
 
 # ── base class ─────────────────────────────────────────────────────────────────
+
 
 def test_base_step_raises():
     assert hasattr(Optimizer, "step")
@@ -84,7 +86,7 @@ def test_zero_grad_clears_gradients():
 def test_zero_grad_skips_none_grad():
     p = torch.tensor([1.0, 2.0])
     assert p.grad is None
-    SGD(lr=0.1).zero_grad([p])   # must not raise
+    SGD(lr=0.1).zero_grad([p])  # must not raise
     assert p.grad is None
 
 
@@ -107,6 +109,7 @@ def test_zero_grad_multiple_params():
 
 # ── SGD ────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize("cfg", SGD_CONFIG_CASES)
 @pytest.mark.parametrize("init,grad", STEP_CASES)
 def test_sgd_single_step(init, grad, cfg):
@@ -124,7 +127,7 @@ def test_sgd_single_step(init, grad, cfg):
 def test_sgd_multi_step(init, grad, cfg):
     """Run 5 steps with varying gradients and compare parameter trajectories."""
     p_ours, p_ref = make_params(init)
-    our_opt   = SGD(**cfg)
+    our_opt = SGD(**cfg)
     torch_opt = torch.optim.SGD([p_ref], **cfg)
 
     for scale in [1.0, 0.8, 1.2, 0.5, 1.5]:
@@ -137,6 +140,7 @@ def test_sgd_multi_step(init, grad, cfg):
 
 
 # ── Adam ───────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("cfg", ADAM_CONFIG_CASES)
 @pytest.mark.parametrize("init,grad", STEP_CASES)
@@ -155,7 +159,7 @@ def test_adam_single_step(init, grad, cfg):
 def test_adam_multi_step(init, grad, cfg):
     """Run 5 steps with varying gradients and compare parameter trajectories."""
     p_ours, p_ref = make_params(init)
-    our_opt   = Adam(**cfg)
+    our_opt = Adam(**cfg)
     torch_opt = torch.optim.Adam([p_ref], **cfg)
 
     for scale in [1.0, 0.8, 1.2, 0.5, 1.5]:

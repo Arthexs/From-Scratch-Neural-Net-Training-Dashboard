@@ -5,7 +5,8 @@ Implemented with manual update rules, no torch.optim.
 """
 
 import torch
-from model.configs import SGDConfig, AdamConfig
+
+from model.configs import AdamConfig, SGDConfig
 from model.registry import OPTIMIZERS
 
 
@@ -85,9 +86,9 @@ class Adam(Optimizer):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._m:    dict[int, torch.Tensor] = {}
-        self._v:    dict[int, torch.Tensor] = {}
-        self._step: dict[int, int]          = {}
+        self._m: dict[int, torch.Tensor] = {}
+        self._v: dict[int, torch.Tensor] = {}
+        self._step: dict[int, int] = {}
 
     def step(self, parameters: list[torch.Tensor]) -> None:
         beta1, beta2 = self.betas
@@ -98,17 +99,17 @@ class Adam(Optimizer):
 
             pid = id(p)
             if pid not in self._m:
-                self._m[pid]    = torch.zeros_like(p)
-                self._v[pid]    = torch.zeros_like(p)
+                self._m[pid] = torch.zeros_like(p)
+                self._v[pid] = torch.zeros_like(p)
                 self._step[pid] = 0
 
             self._step[pid] += 1
             t = self._step[pid]
 
             self._m[pid] = beta1 * self._m[pid] + (1 - beta1) * grad
-            self._v[pid] = beta2 * self._v[pid] + (1 - beta2) * grad ** 2
+            self._v[pid] = beta2 * self._v[pid] + (1 - beta2) * grad**2
 
-            m_hat = self._m[pid] / (1 - beta1 ** t)
-            v_hat = self._v[pid] / (1 - beta2 ** t)
+            m_hat = self._m[pid] / (1 - beta1**t)
+            v_hat = self._v[pid] / (1 - beta2**t)
 
             p.data -= self.lr * m_hat / (torch.sqrt(v_hat) + self.eps)

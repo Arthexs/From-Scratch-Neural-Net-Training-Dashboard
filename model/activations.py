@@ -4,11 +4,11 @@ Activation layers (ReLU, Sigmoid, Softmax) implemented as Layer subclasses.
 To be implemented using tensor-level math only.
 """
 
-
 import torch
+
+from model.configs import ReLUConfig, SigmoidConfig, SoftmaxConfig
 from model.layers import Layer
 from model.registry import LAYERS
-from model.configs import ReLUConfig, SigmoidConfig, SoftmaxConfig
 
 
 @LAYERS.register("relu")
@@ -20,8 +20,11 @@ class ReLU(Layer):
         return self.out
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
-        mask = torch.where(torch.gt(self.out, 0), torch.ones_like(self.out), torch.zeros_like(self.out))
+        mask = torch.where(
+            torch.gt(self.out, 0), torch.ones_like(self.out), torch.zeros_like(self.out)
+        )
         return torch.mul(grad, mask)
+
 
 @LAYERS.register("sigmoid")
 class Sigmoid(Layer):
@@ -33,7 +36,8 @@ class Sigmoid(Layer):
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
         return torch.mul(grad, (torch.mul(self.out, (torch.sub(1, self.out)))))
-    
+
+
 @LAYERS.register("softmax")
 class Softmax(Layer):
     config_model = SoftmaxConfig

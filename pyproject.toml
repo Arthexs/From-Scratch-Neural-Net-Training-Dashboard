@@ -9,3 +9,12 @@ version = "0.1.0"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["model*", "training*", "backend*"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # pycodestyle errors, pyflakes, isort
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401"]  # unused imports are fine in test files

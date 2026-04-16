@@ -4,8 +4,7 @@ Registry for layers, losses, and optimizers.
 Implementation to be added according to project_structure.md.
 """
 
-
-from typing import Type, Callable, Any
+from typing import Any, Callable, Type
 
 
 class Registry:
@@ -20,23 +19,24 @@ class Registry:
 
     def register(self, name: str) -> Callable[[Type], Type]:
         """Decorator to register a component class under a given name."""
+
         def decorator(component_cls: Type) -> Type:
             if name in self._registry:
                 raise ValueError(f"{self.label} '{name}' already registered.")
-            if not hasattr(component_cls, 'config_model'):
+            if not hasattr(component_cls, "config_model"):
                 raise AttributeError(
                     f"{self.label} class '{component_cls.__name__}' must define a 'config_model'."
                 )
             self._registry[name] = component_cls
             return component_cls
+
         return decorator
 
     def get(self, name: str) -> Type:
         """Retrieve a registered component by name."""
         if name not in self._registry:
             raise KeyError(
-                f"Unknown {self.label}: '{name}'. "
-                f"Available: {list(self._registry.keys())}"
+                f"Unknown {self.label}: '{name}'. Available: {list(self._registry.keys())}"
             )
         return self._registry[name]
 
@@ -52,6 +52,6 @@ class Registry:
         return list(self._registry.keys())
 
 
-LAYERS     = Registry("Layer")
-LOSSES     = Registry("Loss")
+LAYERS = Registry("Layer")
+LOSSES = Registry("Loss")
 OPTIMIZERS = Registry("Optimizer")
