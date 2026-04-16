@@ -28,6 +28,9 @@ jobs:
         with:
           environment-file: environment.ci.yaml
           activate-environment: nn_ci
+      - name: Install package
+        shell: bash -el {0}
+        run: pip install -e .
       - name: Run tests
         shell: bash -el {0}
         run: pytest tests/ -v
