@@ -6,6 +6,8 @@ Implementation to be added according to project_structure.md.
 
 from typing import Any, Callable, Type
 
+from pydantic import BaseModel
+
 
 class Registry:
     """
@@ -15,19 +17,17 @@ class Registry:
 
     def __init__(self, label: str) -> None:
         self._registry: dict[str, Type] = {}
+        self._configs: dict[str, type[BaseModel]] = {}
         self.label = label
 
-    def register(self, name: str) -> Callable[[Type], Type]:
+    def register(self, name: str, config: type[BaseModel]) -> Callable[[Type], Type]:
         """Decorator to register a component class under a given name."""
 
         def decorator(component_cls: Type) -> Type:
             if name in self._registry:
                 raise ValueError(f"{self.label} '{name}' already registered.")
-            if not hasattr(component_cls, "config_model"):
-                raise AttributeError(
-                    f"{self.label} class '{component_cls.__name__}' must define a 'config_model'."
-                )
             self._registry[name] = component_cls
+            self._configs[name] = config
             return component_cls
 
         return decorator
@@ -41,11 +41,8 @@ class Registry:
         return self._registry[name]
 
     def schemas(self) -> dict[str, dict[str, Any]]:
-        """Return a dict mapping names to their Pydantic config_model JSON schemas."""
-        return {
-            name: component_cls.config_model.model_json_schema()
-            for name, component_cls in self._registry.items()
-        }
+        """Return a dict mapping names to their Pydantic config JSON schemas."""
+        return {name: config_cls.model_json_schema() for name, config_cls in self._configs.items()}
 
     def keys(self) -> list[str]:
         """Return all registered names."""

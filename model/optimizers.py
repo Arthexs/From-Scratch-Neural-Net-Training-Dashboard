@@ -4,6 +4,8 @@ Optimizer implementations (SGD, Adam) operating on raw tensors with gradients.
 Implemented with manual update rules, no torch.optim.
 """
 
+from typing import Any
+
 import torch
 
 from model.configs import AdamConfig, SGDConfig
@@ -11,14 +13,6 @@ from model.registry import OPTIMIZERS
 
 
 class Optimizer:
-    config_model = None
-
-    def __init__(self, **kwargs):
-        if self.config_model is not None:
-            config = self.config_model(**kwargs)
-            for name, value in config.model_dump().items():
-                setattr(self, name, value)
-
     def step(self, parameters: list[torch.Tensor]) -> None:
         raise NotImplementedError
 
@@ -28,7 +22,7 @@ class Optimizer:
                 p.grad.zero_()
 
 
-@OPTIMIZERS.register("sgd")
+@OPTIMIZERS.register("sgd", config=SGDConfig)
 class SGD(Optimizer):
     """SGD with optional momentum and L2 weight decay.
 
@@ -43,29 +37,27 @@ class SGD(Optimizer):
                   e.g. via loss.backward())
     """
 
-    config_model = SGDConfig
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, **kwargs: Any):
+        self._cfg = SGDConfig(**kwargs)
         self._velocity: dict[int, torch.Tensor] = {}
 
     def step(self, parameters: list[torch.Tensor]) -> None:
         for p in parameters:
             if p.grad is None:
                 continue
-            grad = p.grad + self.weight_decay * p.data
+            grad = p.grad + self._cfg.weight_decay * p.data
 
-            if self.momentum > 0:
+            if self._cfg.momentum > 0:
                 pid = id(p)
                 if pid not in self._velocity:
                     self._velocity[pid] = torch.zeros_like(p)
-                self._velocity[pid] = self.momentum * self._velocity[pid] + grad
+                self._velocity[pid] = self._cfg.momentum * self._velocity[pid] + grad
                 grad = self._velocity[pid]
 
-            p.data -= self.lr * grad
+            p.data -= self._cfg.lr * grad
 
 
-@OPTIMIZERS.register("adam")
+@OPTIMIZERS.register("adam", config=AdamConfig)
 class Adam(Optimizer):
     """Adam optimiser with L2 weight decay.
 
@@ -82,20 +74,18 @@ class Adam(Optimizer):
                   e.g. via loss.backward())
     """
 
-    config_model = AdamConfig
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, **kwargs: Any):
+        self._cfg = AdamConfig(**kwargs)
         self._m: dict[int, torch.Tensor] = {}
         self._v: dict[int, torch.Tensor] = {}
         self._step: dict[int, int] = {}
 
     def step(self, parameters: list[torch.Tensor]) -> None:
-        beta1, beta2 = self.betas
+        beta1, beta2 = self._cfg.betas
         for p in parameters:
             if p.grad is None:
                 continue
-            grad = p.grad + self.weight_decay * p.data
+            grad = p.grad + self._cfg.weight_decay * p.data
 
             pid = id(p)
             if pid not in self._m:
@@ -112,4 +102,4 @@ class Adam(Optimizer):
             m_hat = self._m[pid] / (1 - beta1**t)
             v_hat = self._v[pid] / (1 - beta2**t)
 
-            p.data -= self.lr * m_hat / (torch.sqrt(v_hat) + self.eps)
+            p.data -= self._cfg.lr * m_hat / (torch.sqrt(v_hat) + self._cfg.eps)

@@ -7,13 +7,21 @@ To be implemented without torch.nn loss modules.
 import torch
 
 from model.configs import CrossEntropyLossConfig, MSELossConfig
-from model.layers import Layer
 from model.registry import LOSSES
 
 
-@LOSSES.register("mse")
-class MSELoss(Layer):
-    config_model = MSELossConfig
+class Loss:
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+    def backward(self, grad: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+
+@LOSSES.register("mse", config=MSELossConfig)
+class MSELoss(Loss):
+    def __init__(self, **kwargs):
+        self._cfg = MSELossConfig(**kwargs)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         self._x = x
@@ -22,20 +30,20 @@ class MSELoss(Layer):
         return self._reduce(loss)
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
-        n = self._x.numel() if self.reduction == "mean" else 1
+        n = self._x.numel() if self._cfg.reduction == "mean" else 1
         dx = torch.mul(2.0 / n, torch.sub(self._x, self._y))
         return torch.mul(grad, dx)
 
     def _reduce(self, loss: torch.Tensor) -> torch.Tensor:
-        if self.reduction == "mean":
+        if self._cfg.reduction == "mean":
             return loss.mean()
-        if self.reduction == "sum":
+        if self._cfg.reduction == "sum":
             return loss.sum()
         return loss  # "none"
 
 
-@LOSSES.register("bce")
-class BCELoss(Layer):
+@LOSSES.register("bce", config=CrossEntropyLossConfig)
+class BCELoss(Loss):
     """Binary cross-entropy loss with sigmoid baked in (BCEWithLogits).
 
     Accepts raw logits and applies sigmoid internally using the numerically
@@ -46,7 +54,8 @@ class BCELoss(Layer):
     The backward simplifies to: sigmoid(x) - y.
     """
 
-    config_model = CrossEntropyLossConfig
+    def __init__(self, **kwargs):
+        self._cfg = CrossEntropyLossConfig(**kwargs)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         self._sig = torch.special.expit(x)
@@ -55,13 +64,13 @@ class BCELoss(Layer):
         return self._reduce(loss)
 
     def backward(self, grad: torch.Tensor) -> torch.Tensor:
-        n = self._sig.numel() if self.reduction == "mean" else 1
+        n = self._sig.numel() if self._cfg.reduction == "mean" else 1
         dx = torch.sub(self._sig, self._y)
         return torch.mul(grad, dx / n)
 
     def _reduce(self, loss: torch.Tensor) -> torch.Tensor:
-        if self.reduction == "mean":
+        if self._cfg.reduction == "mean":
             return loss.mean()
-        if self.reduction == "sum":
+        if self._cfg.reduction == "sum":
             return loss.sum()
         return loss  # "none"

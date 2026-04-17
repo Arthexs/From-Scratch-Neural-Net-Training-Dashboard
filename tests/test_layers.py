@@ -41,10 +41,10 @@ INITIALIZER_CASES = [
 
 def make_ref_linear(layer: Dense) -> torch.nn.Linear:
     """Build a torch.nn.Linear with identical weights to our Dense layer."""
-    ref = torch.nn.Linear(layer.input_size, layer.output_size, bias=layer.bias)
+    ref = torch.nn.Linear(layer._cfg.input_size, layer._cfg.output_size, bias=layer._cfg.bias)
     with torch.no_grad():
         ref.weight.copy_(layer.W.T)  # nn.Linear stores W as (out, in)
-        if layer.bias:
+        if layer._cfg.bias:
             ref.bias.copy_(layer.b)
     return ref
 
@@ -238,11 +238,16 @@ def make_ref_conv(layer: Conv2D) -> torch.nn.Conv2d:
     """Build a torch.nn.Conv2d with identical weights to our Conv2D layer."""
     Cout, Cin, Kh, _ = layer.W.shape
     ref = torch.nn.Conv2d(
-        Cin, Cout, kernel_size=Kh, stride=layer.stride, padding=layer.padding, bias=layer.bias
+        Cin,
+        Cout,
+        kernel_size=Kh,
+        stride=layer._cfg.stride,
+        padding=layer._cfg.padding,
+        bias=layer._cfg.bias,
     )
     with torch.no_grad():
         ref.weight.copy_(layer.W)
-        if layer.bias:
+        if layer._cfg.bias:
             ref.bias.copy_(layer.b)
     return ref
 
