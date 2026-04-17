@@ -52,3 +52,4 @@ class Registry:
 LAYERS = Registry("Layer")
 LOSSES = Registry("Loss")
 OPTIMIZERS = Registry("Optimizer")
+DATASETS = Registry("Dataset")

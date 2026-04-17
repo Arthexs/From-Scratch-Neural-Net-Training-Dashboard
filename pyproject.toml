@@ -5,6 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "training-dashboard"
 version = "0.1.0"
+dependencies = [
+    "torch",
+    "torchvision",
+    "pydantic>=2",
+    "fastapi",
+    "uvicorn[standard]",
+    "psutil",
+    "pynvml",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
