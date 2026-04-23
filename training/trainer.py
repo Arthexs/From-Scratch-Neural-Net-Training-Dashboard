@@ -1,4 +1,4 @@
-"""
+﻿"""
 Training loop and resource monitor.
 
 Trainer.run() is the entry point for the training thread.
@@ -14,11 +14,11 @@ from typing import Any
 import psutil
 import torch
 
-from model.configs import DataConfig, TrainerConfig
+from training.configs import TrainerConfig
 from model.losses import Loss
 from model.network import Network
 from model.optimizers import Optimizer
-from training.data import get_dataloaders
+from training.data import BaseDataset
 from training.device import device
 
 
@@ -90,7 +90,7 @@ class Trainer:
         loss: Loss,
         optimizer: Optimizer,
         cfg: TrainerConfig,
-        data_cfg: DataConfig,
+        dataset: BaseDataset,
         metrics: "queue.Queue[dict[str, Any]]",
         stop: threading.Event,
     ) -> None:
@@ -98,13 +98,13 @@ class Trainer:
         self._loss = loss
         self._optimizer = optimizer
         self._cfg = cfg
-        self._data_cfg = data_cfg
+        self._dataset = dataset
         self._metrics = metrics
         self._stop = stop
 
     def run(self) -> None:
         """Entry point for the training thread. Runs all epochs then emits done."""
-        train_loader, val_loader = get_dataloaders(self._data_cfg, self._cfg.batch_size)
+        train_loader, val_loader = self._dataset.get_loaders(self._cfg.batch_size)
         self._network.to(device)
 
         try:
@@ -112,7 +112,7 @@ class Trainer:
                 if self._stop.is_set():
                     break
                 self._train_epoch(epoch, train_loader)
-                if self._cfg.log_validation and not self._stop.is_set():
+                if self._cfg.log_validation and val_loader is not None and not self._stop.is_set():
                     self._validate_epoch(epoch, val_loader)
         finally:
             self._emit({"type": "done"})
@@ -189,3 +189,4 @@ class Trainer:
                 "epoch": epoch,
                 "loss": total_loss / n_batches,
             })
+

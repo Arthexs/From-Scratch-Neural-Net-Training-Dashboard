@@ -1,23 +1,40 @@
 """
-Dataset classes and data utilities.
+Dataset base class, concrete implementations, and data utilities.
 
-Each dataset is registered in DATASETS and follows the same pattern as layers/losses:
+Each dataset must inherit BaseDataset and be registered in DATASETS:
     @DATASETS.register("name", config=NameConfig)
-    class NameDataset:
-        def __init__(self, **kwargs): ...
-        def get_loaders(self, val_split, batch_size) -> tuple[DataLoader, DataLoader]: ...
+    class NameDataset(BaseDataset):
+        def __init__(self, val_split: float, **kwargs): ...
+        def get_loaders(self, batch_size: int) -> tuple[DataLoader, DataLoader | None]: ...
+        def get_test_loader(self, batch_size: int) -> DataLoader: ...
 
 Utility functions:
     one_hot(y, num_classes)  — from-scratch one-hot encoding
     normalize(x, mean, std)  — from-scratch per-channel normalisation
 """
 
+from abc import ABC, abstractmethod
+
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import datasets, transforms
 
-from model.configs import MNISTConfig
-from model.registry import DATASETS
+from training.configs import MNISTConfig
+from training.registry import DATASETS
+
+
+# ── Base class ─────────────────────────────────────────────────────────────────
+
+class BaseDataset(ABC):
+    """Abstract base for all registered datasets."""
+
+    @abstractmethod
+    def get_loaders(self, batch_size: int) -> tuple[DataLoader, DataLoader | None]:
+        """Return (train_loader, val_loader). val_loader is None when val_split=0."""
+
+    @abstractmethod
+    def get_test_loader(self, batch_size: int) -> DataLoader:
+        """Return a loader over the held-out test split."""
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
@@ -54,7 +71,7 @@ def normalize(x: torch.Tensor, mean: float | torch.Tensor, std: float | torch.Te
 # ── Dataset registry ───────────────────────────────────────────────────────────
 
 @DATASETS.register("mnist", config=MNISTConfig)
-class MNISTDataset:
+class MNISTDataset(BaseDataset):
     """MNIST handwritten digits (60 000 train / 10 000 test, 1×28×28, 10 classes).
 
     Applies ToTensor() then normalises with the configured mean and std.
@@ -63,18 +80,23 @@ class MNISTDataset:
 
     num_classes: int = 10
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, val_split: float, **kwargs: object) -> None:
+        self._val_split = val_split
         self._cfg = MNISTConfig(**kwargs)
 
-    def get_loaders(self, val_split: float, batch_size: int) -> tuple[DataLoader, DataLoader]:
+    def get_loaders(self, batch_size: int) -> tuple[DataLoader, DataLoader | None]:
         """Download (if needed), split, and wrap in DataLoaders.
 
         Returns:
-            (train_loader, val_loader)
+            (train_loader, val_loader) — val_loader is None when val_split=0
         """
         raw = datasets.MNIST(root="data", train=True, download=True, transform=transforms.ToTensor())
 
-        n_val = int(len(raw) * val_split)
+        if self._val_split == 0:
+            train_set = _NormOneHotDataset(raw, self._cfg.mean, self._cfg.std, self.num_classes)
+            return DataLoader(train_set, batch_size=batch_size, shuffle=True), None
+
+        n_val = int(len(raw) * self._val_split)
         n_train = len(raw) - n_val
         train_split, val_split_data = random_split(raw, [n_train, n_val])
 
@@ -85,6 +107,12 @@ class MNISTDataset:
         val_loader: DataLoader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
         return train_loader, val_loader
+
+    def get_test_loader(self, batch_size: int) -> DataLoader:
+        """Return a loader over the MNIST test split (10 000 samples)."""
+        raw = datasets.MNIST(root="data", train=False, download=True, transform=transforms.ToTensor())
+        test_set = _NormOneHotDataset(raw, self._cfg.mean, self._cfg.std, self.num_classes)
+        return DataLoader(test_set, batch_size=batch_size, shuffle=False)
 
 
 # ── Internal wrapper ───────────────────────────────────────────────────────────

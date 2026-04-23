@@ -100,5 +100,5 @@ def test_from_config_unknown_type():
 def test_from_config_preserves_order():
     net = Network.from_config(MLP_BASELINE)
     names = [type(layer).__name__ for layer in net.layers]
-    assert names[0] == "Dense"
+    assert names[0] == "Flatten"
     assert names[-1] == "Softmax"
