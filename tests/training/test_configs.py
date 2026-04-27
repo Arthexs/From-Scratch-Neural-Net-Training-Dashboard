@@ -3,8 +3,8 @@ from pydantic import ValidationError
 
 from training.configs import DataConfig, MNISTConfig, TrainerConfig
 
-
 # ── DataConfig ─────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("val_split", [0.0, 0.01, 0.2, 0.5, 0.99])
 def test_data_config_valid_val_split(val_split):
@@ -28,6 +28,7 @@ def test_data_config_extra_forbidden():
 
 # ── MNISTConfig ────────────────────────────────────────────────────────────────
 
+
 def test_mnist_config_defaults():
     cfg = MNISTConfig()
     assert cfg.mean == pytest.approx(0.1307)
@@ -48,6 +49,7 @@ def test_mnist_config_extra_forbidden():
 
 # ── TrainerConfig ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize("epochs,batch_size", [(1, 1), (10, 32), (100, 128)])
 def test_trainer_config_valid(epochs, batch_size):
     cfg = TrainerConfig(epochs=epochs, batch_size=batch_size)
@@ -55,14 +57,17 @@ def test_trainer_config_valid(epochs, batch_size):
     assert cfg.batch_size == batch_size
 
 
-@pytest.mark.parametrize("field,value", [
-    ("epochs", 0),
-    ("epochs", -1),
-    ("batch_size", 0),
-    ("batch_size", -1),
-    ("monitor_interval_s", 0.0),
-    ("monitor_interval_s", -1.0),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("epochs", 0),
+        ("epochs", -1),
+        ("batch_size", 0),
+        ("batch_size", -1),
+        ("monitor_interval_s", 0.0),
+        ("monitor_interval_s", -1.0),
+    ],
+)
 def test_trainer_config_invalid(field, value):
     with pytest.raises(ValidationError):
         TrainerConfig(**{field: value})

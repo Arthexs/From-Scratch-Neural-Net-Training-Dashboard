@@ -14,6 +14,7 @@ Utility functions:
 """
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -22,8 +23,8 @@ from torchvision import datasets, transforms
 from training.configs import MNISTConfig
 from training.registry import DATASETS
 
-
 # ── Base class ─────────────────────────────────────────────────────────────────
+
 
 class BaseDataset(ABC):
     """Abstract base for all registered datasets."""
@@ -38,6 +39,7 @@ class BaseDataset(ABC):
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
+
 
 def one_hot(y: torch.Tensor, num_classes: int) -> torch.Tensor:
     """Encode a 1-D integer label tensor as a float one-hot matrix.
@@ -54,7 +56,9 @@ def one_hot(y: torch.Tensor, num_classes: int) -> torch.Tensor:
     return out
 
 
-def normalize(x: torch.Tensor, mean: float | torch.Tensor, std: float | torch.Tensor) -> torch.Tensor:
+def normalize(
+    x: torch.Tensor, mean: float | torch.Tensor, std: float | torch.Tensor
+) -> torch.Tensor:
     """Subtract mean and divide by std, broadcast over any leading batch dimensions.
 
     Args:
@@ -70,6 +74,7 @@ def normalize(x: torch.Tensor, mean: float | torch.Tensor, std: float | torch.Te
 
 # ── Dataset registry ───────────────────────────────────────────────────────────
 
+
 @DATASETS.register("mnist", config=MNISTConfig)
 class MNISTDataset(BaseDataset):
     """MNIST handwritten digits (60 000 train / 10 000 test, 1×28×28, 10 classes).
@@ -80,7 +85,7 @@ class MNISTDataset(BaseDataset):
 
     num_classes: int = 10
 
-    def __init__(self, val_split: float, **kwargs: object) -> None:
+    def __init__(self, val_split: float, **kwargs: Any) -> None:
         self._val_split = val_split
         self._cfg = MNISTConfig(**kwargs)
 
@@ -90,7 +95,9 @@ class MNISTDataset(BaseDataset):
         Returns:
             (train_loader, val_loader) — val_loader is None when val_split=0
         """
-        raw = datasets.MNIST(root="data", train=True, download=True, transform=transforms.ToTensor())
+        raw = datasets.MNIST(
+            root="data", train=True, download=True, transform=transforms.ToTensor()
+        )
 
         if self._val_split == 0:
             train_set = _NormOneHotDataset(raw, self._cfg.mean, self._cfg.std, self.num_classes)
@@ -101,7 +108,9 @@ class MNISTDataset(BaseDataset):
         train_split, val_split_data = random_split(raw, [n_train, n_val])
 
         train_set = _NormOneHotDataset(train_split, self._cfg.mean, self._cfg.std, self.num_classes)
-        val_set = _NormOneHotDataset(val_split_data, self._cfg.mean, self._cfg.std, self.num_classes)
+        val_set = _NormOneHotDataset(
+            val_split_data, self._cfg.mean, self._cfg.std, self.num_classes
+        )
 
         train_loader: DataLoader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
         val_loader: DataLoader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
@@ -110,12 +119,15 @@ class MNISTDataset(BaseDataset):
 
     def get_test_loader(self, batch_size: int) -> DataLoader:
         """Return a loader over the MNIST test split (10 000 samples)."""
-        raw = datasets.MNIST(root="data", train=False, download=True, transform=transforms.ToTensor())
+        raw = datasets.MNIST(
+            root="data", train=False, download=True, transform=transforms.ToTensor()
+        )
         test_set = _NormOneHotDataset(raw, self._cfg.mean, self._cfg.std, self.num_classes)
         return DataLoader(test_set, batch_size=batch_size, shuffle=False)
 
 
 # ── Internal wrapper ───────────────────────────────────────────────────────────
+
 
 class _NormOneHotDataset(Dataset):
     """Wraps a raw image dataset: normalises x and one-hot encodes y on the fly."""

@@ -1,12 +1,13 @@
+from unittest.mock import patch
+
 import pytest
 import torch
 from torch.utils.data import DataLoader
-from unittest.mock import patch
 
 from training.data import BaseDataset, MNISTDataset, normalize, one_hot
 
-
 # ── Synthetic stand-in for torchvision MNIST ───────────────────────────────────
+
 
 class _FakeMNIST:
     def __init__(self, n: int = 100) -> None:
@@ -27,20 +28,27 @@ def fake_mnist():
 
 # ── one_hot ────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("labels,num_classes", [
-    ([0], 10),
-    ([0, 1, 5, 9], 10),
-    ([0, 1, 2], 3),
-])
+
+@pytest.mark.parametrize(
+    "labels,num_classes",
+    [
+        ([0], 10),
+        ([0, 1, 5, 9], 10),
+        ([0, 1, 2], 3),
+    ],
+)
 def test_one_hot_shape(labels, num_classes):
     out = one_hot(torch.tensor(labels), num_classes)
     assert out.shape == (len(labels), num_classes)
 
 
-@pytest.mark.parametrize("labels,num_classes", [
-    ([0, 3, 7], 10),
-    ([0, 1, 2], 3),
-])
+@pytest.mark.parametrize(
+    "labels,num_classes",
+    [
+        ([0, 3, 7], 10),
+        ([0, 1, 2], 3),
+    ],
+)
 def test_one_hot_values(labels, num_classes):
     out = one_hot(torch.tensor(labels), num_classes)
     for i, cls in enumerate(labels):
@@ -53,6 +61,7 @@ def test_one_hot_dtype():
 
 
 # ── normalize ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("mean,std", [(0.0, 1.0), (0.5, 0.5), (0.1307, 0.3081)])
 def test_normalize_zero_at_mean(mean, std):
@@ -71,6 +80,7 @@ def test_normalize_preserves_shape():
 
 # ── BaseDataset ────────────────────────────────────────────────────────────────
 
+
 def test_base_dataset_is_abstract():
     with pytest.raises(TypeError):
         BaseDataset()  # type: ignore[abstract]
@@ -81,6 +91,7 @@ def test_mnist_dataset_is_subclass():
 
 
 # ── MNISTDataset.get_loaders ───────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("val_split,expect_val", [(0.0, False), (0.2, True), (0.5, True)])
 def test_get_loaders_val_presence(val_split, expect_val, fake_mnist):
@@ -124,6 +135,7 @@ def test_get_loaders_label_dtype(fake_mnist):
 
 
 # ── MNISTDataset.get_test_loader ───────────────────────────────────────────────
+
 
 def test_get_test_loader_returns_dataloader(fake_mnist):
     with patch("training.data.datasets.MNIST", return_value=fake_mnist):

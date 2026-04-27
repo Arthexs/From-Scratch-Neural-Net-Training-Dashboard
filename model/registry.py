@@ -47,6 +47,32 @@ class Registry:
         return list(self._registry.keys())
 
 
+class FnRegistry:
+    """Registry for named callables (no config required)."""
+
+    def __init__(self, label: str) -> None:
+        self._fns: dict[str, Callable] = {}
+        self.label = label
+
+    def register(self, name: str) -> Callable[[Callable], Callable]:
+        def decorator(fn: Callable) -> Callable:
+            if name in self._fns:
+                raise ValueError(f"{self.label} '{name}' already registered.")
+            self._fns[name] = fn
+            return fn
+
+        return decorator
+
+    def get(self, name: str) -> Callable:
+        if name not in self._fns:
+            raise KeyError(f"Unknown {self.label}: '{name}'. Available: {list(self._fns.keys())}")
+        return self._fns[name]
+
+    def keys(self) -> list[str]:
+        return list(self._fns.keys())
+
+
 LAYERS = Registry("Layer")
 LOSSES = Registry("Loss")
 OPTIMIZERS = Registry("Optimizer")
+INITIALIZERS = FnRegistry("Initializer")

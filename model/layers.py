@@ -7,7 +7,7 @@ To be implemented using raw torch.Tensor operations, without torch.nn.
 import torch
 
 from model.configs import Conv2DConfig, DenseConfig, FlattenConfig, MaxPool2DConfig
-from model.registry import LAYERS
+from model.registry import INITIALIZERS, LAYERS
 
 
 class Layer:
@@ -26,12 +26,28 @@ class Layer:
         return self
 
 
-_INITIALIZERS = {
-    "xavier_uniform": torch.nn.init.xavier_uniform_,
-    "xavier_normal": torch.nn.init.xavier_normal_,
-    "kaiming_uniform": torch.nn.init.kaiming_uniform_,
-    "kaiming_normal": torch.nn.init.kaiming_normal_,
-}
+@INITIALIZERS.register("xavier_uniform")
+def _xavier_uniform(t: torch.Tensor) -> torch.Tensor:
+    torch.nn.init.xavier_uniform_(t)
+    return t
+
+
+@INITIALIZERS.register("xavier_normal")
+def _xavier_normal(t: torch.Tensor) -> torch.Tensor:
+    torch.nn.init.xavier_normal_(t)
+    return t
+
+
+@INITIALIZERS.register("kaiming_uniform")
+def _kaiming_uniform(t: torch.Tensor) -> torch.Tensor:
+    torch.nn.init.kaiming_uniform_(t)
+    return t
+
+
+@INITIALIZERS.register("kaiming_normal")
+def _kaiming_normal(t: torch.Tensor) -> torch.Tensor:
+    torch.nn.init.kaiming_normal_(t)
+    return t
 
 
 @LAYERS.register("dense", config=DenseConfig)
@@ -46,7 +62,7 @@ class Dense(Layer):
     def __init__(self, **kwargs):
         self._cfg = DenseConfig(**kwargs)
         self.W = torch.empty(self._cfg.input_size, self._cfg.output_size)
-        _INITIALIZERS[self._cfg.initializer](self.W)
+        INITIALIZERS.get(self._cfg.initializer)(self.W)
         self.b = torch.zeros(self._cfg.output_size) if self._cfg.bias else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -90,7 +106,7 @@ class Conv2D(Layer):
             self._cfg.kernel_size,
             self._cfg.kernel_size,
         )
-        _INITIALIZERS[self._cfg.initializer](self.W)
+        INITIALIZERS.get(self._cfg.initializer)(self.W)
         self.b = torch.zeros(self._cfg.out_channels) if self._cfg.bias else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

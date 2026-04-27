@@ -25,6 +25,7 @@ def test_datasets_schemas_include_mnist():
 
 def test_datasets_independent_from_model_registries():
     from model.registry import LAYERS, LOSSES, OPTIMIZERS
+
     assert DATASETS is not LAYERS
     assert DATASETS is not LOSSES
     assert DATASETS is not OPTIMIZERS

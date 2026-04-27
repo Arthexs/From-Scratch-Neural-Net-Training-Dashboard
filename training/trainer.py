@@ -1,4 +1,4 @@
-﻿"""
+"""
 Training loop and resource monitor.
 
 Trainer.run() is the entry point for the training thread.
@@ -14,12 +14,36 @@ from typing import Any
 import psutil
 import torch
 
-from training.configs import TrainerConfig
 from model.losses import Loss
 from model.network import Network
 from model.optimizers import Optimizer
+from training.configs import TrainerConfig
 from training.data import BaseDataset
 from training.device import device
+from training.registry import METRICS
+
+
+@METRICS.register("classification_accuracy")
+def _classification_accuracy(out: torch.Tensor, y: torch.Tensor) -> float:
+    pred = out.argmax(dim=-1)
+    target = y.argmax(dim=-1) if y.dim() > 1 else y
+    return float((pred == target).float().mean().item())
+
+
+@METRICS.register("binary_accuracy")
+def _binary_accuracy(out: torch.Tensor, y: torch.Tensor) -> float:
+    pred = out.sigmoid() >= 0.5
+    return float((pred == y.bool()).float().mean().item())
+
+
+@METRICS.register("mae")
+def _mae(out: torch.Tensor, y: torch.Tensor) -> float:
+    return float((out - y).abs().mean().item())
+
+
+@METRICS.register("rmse")
+def _rmse(out: torch.Tensor, y: torch.Tensor) -> float:
+    return float(((out - y) ** 2).mean().sqrt().item())
 
 
 def monitor_loop(
@@ -43,6 +67,7 @@ def monitor_loop(
     if torch.cuda.is_available():
         try:
             import pynvml  # type: ignore[import]
+
             pynvml.nvmlInit()
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
             nvml_ok = True
@@ -61,6 +86,7 @@ def monitor_loop(
 
             if nvml_ok and handle is not None:
                 import pynvml  # type: ignore[import]
+
                 util = pynvml.nvmlDeviceGetUtilizationRates(handle)
                 mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
                 payload["gpu_util"] = util.gpu
@@ -80,6 +106,7 @@ def monitor_loop(
     finally:
         if nvml_ok:
             import pynvml  # type: ignore[import]
+
             pynvml.nvmlShutdown()
 
 
@@ -128,6 +155,7 @@ class Trainer:
 
     def _train_epoch(self, epoch: int, loader: Any) -> None:
         total_loss = 0.0
+        metric_totals: dict[str, float] = {m: 0.0 for m in self._cfg.metrics}
         n_batches = 0
 
         for batch_idx, (x, y) in enumerate(loader):
@@ -145,29 +173,61 @@ class Trainer:
 
             params = self._network.parameters()
             self._optimizer.step(params)
+
+            if self._cfg.log_grad_norm:
+                grads = [p.grad for p in params if p.grad is not None]
+                if grads:
+                    grad_norm = torch.stack([g.norm() for g in grads]).norm().item()
+                    self._emit(
+                        {
+                            "type": "grad_norm",
+                            "epoch": epoch,
+                            "batch": batch_idx,
+                            "value": grad_norm,
+                        }
+                    )
+
             self._optimizer.zero_grad(params)
 
             batch_loss = loss_val.item()
             total_loss += batch_loss
+            for m in self._cfg.metrics:
+                metric_totals[m] += METRICS.get(m)(out, y)
             n_batches += 1
 
             if self._cfg.log_per_batch_loss:
-                self._emit({
-                    "type": "batch_loss",
-                    "epoch": epoch,
-                    "batch": batch_idx,
-                    "loss": batch_loss,
-                })
+                self._emit(
+                    {
+                        "type": "batch_loss",
+                        "epoch": epoch,
+                        "batch": batch_idx,
+                        "loss": batch_loss,
+                    }
+                )
 
-        if self._cfg.log_per_epoch_loss and n_batches > 0:
-            self._emit({
-                "type": "epoch_loss",
-                "epoch": epoch,
-                "loss": total_loss / n_batches,
-            })
+        if n_batches > 0:
+            if self._cfg.log_per_epoch_loss:
+                self._emit(
+                    {
+                        "type": "epoch_loss",
+                        "epoch": epoch,
+                        "loss": total_loss / n_batches,
+                    }
+                )
+            for m, total in metric_totals.items():
+                self._emit(
+                    {
+                        "type": "metric",
+                        "name": m,
+                        "split": "train",
+                        "epoch": epoch,
+                        "value": total / n_batches,
+                    }
+                )
 
     def _validate_epoch(self, epoch: int, loader: Any) -> None:
         total_loss = 0.0
+        metric_totals: dict[str, float] = {m: 0.0 for m in self._cfg.metrics}
         n_batches = 0
 
         for x, y in loader:
@@ -181,12 +241,25 @@ class Trainer:
             loss_val = self._loss.forward(out, y)
 
             total_loss += loss_val.item()
+            for m in self._cfg.metrics:
+                metric_totals[m] += METRICS.get(m)(out, y)
             n_batches += 1
 
         if n_batches > 0:
-            self._emit({
-                "type": "val_loss",
-                "epoch": epoch,
-                "loss": total_loss / n_batches,
-            })
-
+            self._emit(
+                {
+                    "type": "val_loss",
+                    "epoch": epoch,
+                    "loss": total_loss / n_batches,
+                }
+            )
+            for m, total in metric_totals.items():
+                self._emit(
+                    {
+                        "type": "metric",
+                        "name": m,
+                        "split": "val",
+                        "epoch": epoch,
+                        "value": total / n_batches,
+                    }
+                )

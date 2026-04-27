@@ -37,7 +37,7 @@ def compute_mean_std(dataset: Dataset) -> tuple[torch.Tensor, torch.Tensor]:
             channel_sum = torch.zeros(c)
             channel_sum_sq = torch.zeros(c)
 
-        pixels = x.view(c, -1)          # (C, H*W)
+        pixels = x.view(c, -1)  # (C, H*W)
         channel_sum += pixels.sum(dim=1)
         channel_sum_sq += pixels.pow(2).sum(dim=1)
         n += pixels.shape[1]
