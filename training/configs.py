@@ -45,6 +45,12 @@ class TrainerConfig(BaseConfig):
         default_factory=list,
         description="Metric names to compute each epoch (keys from METRICS registry)",
     )
+    save_checkpoints: bool = Field(
+        default=False, description="Save model weights when training completes naturally"
+    )
+    checkpoint_dir: str = Field(
+        default="runs/", description="Directory for checkpoint files; filename is {run_id}_checkpoint.pt"
+    )
 
     @field_validator("metrics")
     @classmethod
@@ -53,3 +59,9 @@ class TrainerConfig(BaseConfig):
         if invalid:
             raise ValueError(f"Unknown metrics: {invalid}. Available: {METRICS.keys()}")
         return v
+
+
+# ----- Logger Config -----
+class LoggerConfig(BaseConfig):
+    db_path: str = Field(default="runs/runs.db", description="Path to the SQLite database file; directory is created on first use")
+    queue_timeout: float = Field(default=0.1, gt=0, description="Seconds to block on queue.get() before looping")

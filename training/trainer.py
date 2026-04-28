@@ -9,6 +9,7 @@ Both write metric dicts to a shared queue.Queue and honour a shared threading.Ev
 import queue
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import psutil
@@ -120,6 +121,8 @@ class Trainer:
         dataset: BaseDataset,
         metrics: "queue.Queue[dict[str, Any]]",
         stop: threading.Event,
+        save: threading.Event,
+        run_id: str,
     ) -> None:
         self._network = network
         self._loss = loss
@@ -128,23 +131,35 @@ class Trainer:
         self._dataset = dataset
         self._metrics = metrics
         self._stop = stop
+        self._save = save
+        self._run_id = run_id
 
     def run(self) -> None:
         """Entry point for the training thread. Runs all epochs then emits done."""
         train_loader, val_loader = self._dataset.get_loaders(self._cfg.batch_size)
         self._network.to(device)
 
+        last_epoch = -1
         try:
             for epoch in range(self._cfg.epochs):
                 if self._stop.is_set():
                     break
+                last_epoch = epoch
                 self._train_epoch(epoch, train_loader)
                 if self._cfg.log_validation and val_loader is not None and not self._stop.is_set():
                     self._validate_epoch(epoch, val_loader)
         finally:
+            if self._cfg.save_checkpoints or self._save.is_set():
+                self._save_checkpoint(last_epoch)
             self._emit({"type": "done"})
 
     # ── private helpers ────────────────────────────────────────────────────────
+
+    def _save_checkpoint(self, epoch: int) -> None:
+        path = Path(self._cfg.checkpoint_dir) / f"{self._run_id}_checkpoint.pt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(self._network, path)
+        self._emit({"type": "checkpoint", "epoch": epoch, "path": str(path)})
 
     def _emit(self, payload: dict[str, Any]) -> None:
         """Non-blocking put; silently drops if queue is full."""
