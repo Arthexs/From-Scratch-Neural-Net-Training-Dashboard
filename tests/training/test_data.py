@@ -18,7 +18,7 @@ class _FakeMNIST:
         return len(self._x)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
-        return self._x[idx], self._y[idx].item()
+        return self._x[idx], int(self._y[idx].item())
 
 
 @pytest.fixture

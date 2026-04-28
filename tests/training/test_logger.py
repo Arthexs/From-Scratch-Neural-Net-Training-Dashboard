@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from training.configs import LoggerConfig
 from training.logger import Logger
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -132,7 +131,9 @@ def test_grad_norm_row(cfg):
 
 @pytest.mark.parametrize("split,name", [("train", "classification_accuracy"), ("val", "mae")])
 def test_metric_row(cfg, split, name):
-    _, rows = _run(cfg, [{"type": "metric", "epoch": 4, "split": split, "name": name, "value": 0.9}])
+    _, rows = _run(
+        cfg, [{"type": "metric", "epoch": 4, "split": split, "name": name, "value": 0.9}]
+    )
     row = next(r for r in rows if r["type"] == "metric")
     assert row["epoch"] == 4
     assert row["batch"] is None
@@ -141,9 +142,18 @@ def test_metric_row(cfg, split, name):
 
 
 def test_resource_not_written_to_db(cfg):
-    _, rows = _run(cfg, [
-        {"type": "resource", "cpu_percent": 50.0, "gpu_util": None, "gpu_mem_used": None, "gpu_mem_total": None},
-    ])
+    _, rows = _run(
+        cfg,
+        [
+            {
+                "type": "resource",
+                "cpu_percent": 50.0,
+                "gpu_util": None,
+                "gpu_mem_used": None,
+                "gpu_mem_total": None,
+            },
+        ],
+    )
     assert not any(r["type"] == "resource" for r in rows)
 
 
@@ -167,10 +177,13 @@ def test_checkpoint_row(cfg):
 
 
 def test_run_id_stamped_on_all_rows(cfg):
-    logger, rows = _run(cfg, [
-        {"type": "epoch_loss", "epoch": 0, "loss": 0.5},
-        {"type": "epoch_loss", "epoch": 1, "loss": 0.4},
-    ])
+    logger, rows = _run(
+        cfg,
+        [
+            {"type": "epoch_loss", "epoch": 0, "loss": 0.5},
+            {"type": "epoch_loss", "epoch": 1, "loss": 0.4},
+        ],
+    )
     assert all(r["run_id"] == logger.run_id for r in rows)
 
 
@@ -189,7 +202,7 @@ def test_done_terminates_thread(cfg):
     assert not logger._thread.is_alive()
 
 
-def test_stop_event_drains_queue(cfg):
+def test_stop_event_drains_queue(cfg) -> None:
     q: queue.Queue = queue.Queue()
     stop = threading.Event()
     logger = Logger(q, cfg, stop)

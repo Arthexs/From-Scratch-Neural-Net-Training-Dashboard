@@ -49,7 +49,8 @@ class TrainerConfig(BaseConfig):
         default=False, description="Save model weights when training completes naturally"
     )
     checkpoint_dir: str = Field(
-        default="runs/", description="Directory for checkpoint files; filename is {run_id}_checkpoint.pt"
+        default="runs/",
+        description="Directory for checkpoint files; filename is {run_id}_checkpoint.pt",
     )
 
     @field_validator("metrics")
@@ -63,5 +64,10 @@ class TrainerConfig(BaseConfig):
 
 # ----- Logger Config -----
 class LoggerConfig(BaseConfig):
-    db_path: str = Field(default="runs/runs.db", description="Path to the SQLite database file; directory is created on first use")
-    queue_timeout: float = Field(default=0.1, gt=0, description="Seconds to block on queue.get() before looping")
+    db_path: str = Field(
+        default="runs/runs.db",
+        description="Path to the SQLite database file; directory is created on first use",
+    )
+    queue_timeout: float = Field(
+        default=0.1, gt=0, description="Seconds to block on queue.get() before looping"
+    )

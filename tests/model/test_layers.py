@@ -248,6 +248,7 @@ def make_ref_conv(layer: Conv2D) -> torch.nn.Conv2d:
     with torch.no_grad():
         ref.weight.copy_(layer.W)
         if layer._cfg.bias:
+            assert ref.bias is not None
             ref.bias.copy_(layer.b)
     return ref
 
