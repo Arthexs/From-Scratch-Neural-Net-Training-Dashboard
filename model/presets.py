@@ -5,8 +5,9 @@ Each preset is a list of layer config dicts as the frontend would send them.
 Pass to Network.from_config() to build a Network.
 """
 
-# Flat MLP for MNIST (784 → 128 → 64 → 10)
+# Flat MLP for MNIST (1x28x28 → flatten → 128 → 64 → 10)
 MLP_BASELINE = [
+    {"type": "flatten"},
     {"type": "dense", "input_size": 784, "output_size": 128},
     {"type": "relu"},
     {"type": "dense", "input_size": 128, "output_size": 64},

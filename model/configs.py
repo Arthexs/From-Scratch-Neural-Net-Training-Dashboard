@@ -1,38 +1,45 @@
 """
 Pydantic configuration models for layers, losses, and optimizers.
-
-To be implemented following the project structure plan.
 """
 
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from model.registry import INITIALIZERS
+
 
 class BaseConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class InitializableConfig(BaseConfig):
+    initializer: str = Field(default="xavier_uniform", description="Weight initialization method")
+
+    @field_validator("initializer")
+    @classmethod
+    def valid_initializer(cls, v: str) -> str:
+        valid = INITIALIZERS.keys()
+        if v not in valid:
+            raise ValueError(f"initializer must be one of {valid}, got '{v}'")
+        return v
+
+
 # ----- Layer Configs -----
-class DenseConfig(BaseConfig):
+class DenseConfig(InitializableConfig):
     input_size: int = Field(..., gt=0, description="Number of input features")
     output_size: int = Field(..., gt=0, description="Number of output features")
     bias: bool = Field(default=True, description="Add a learnable bias to the output")
-    initializer: Literal["xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"] = (
-        Field(default="xavier_uniform", description="Weight initialization method")
-    )
 
 
-class Conv2DConfig(BaseConfig):
+class Conv2DConfig(InitializableConfig):
     in_channels: int = Field(..., gt=0, description="Number of input channels")
     out_channels: int = Field(..., gt=0, description="Number of output channels")
     kernel_size: int = Field(default=3, gt=0, description="Size of the convolutional kernel")
     stride: int = Field(default=1, gt=0, description="Stride of the convolutional operation")
     padding: int = Field(default=0, ge=0, description="Padding of the convolutional operation")
     bias: bool = Field(default=True, description="Add a learnable bias to the output")
-    initializer: Literal["xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"] = (
-        Field(default="kaiming_uniform", description="Weight initialization method")
-    )
+    initializer: str = Field(default="kaiming_uniform", description="Weight initialization method")
 
     @field_validator("kernel_size")
     @classmethod

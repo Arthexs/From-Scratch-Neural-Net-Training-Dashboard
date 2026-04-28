@@ -5,6 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "training-dashboard"
 version = "0.1.0"
+dependencies = [
+    "torch",
+    "torchvision",
+    "pydantic>=2",
+    "fastapi",
+    "uvicorn[standard]",
+    "psutil",
+    "pynvml",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -18,6 +27,10 @@ select = ["E", "F", "I"]  # pycodestyle errors, pyflakes, isort
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F401"]  # unused imports are fine in test files
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.mypy]
 python_version = "3.11"

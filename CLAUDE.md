@@ -43,6 +43,30 @@ GPU support is free — tensors move via `.to(device)`, all ops dispatch to CUDA
 3. Add the import comment to `model/__init__.py` if in a new file
 4. Add tests in `tests/test_layers.py` comparing against a `torch.nn` reference
 
+## Working style — hybrid approach
+
+Arthur is the pilot, Claude is the driver. Follow this protocol on every task:
+
+**Before writing any code:**
+1. State which files you will touch and what you plan to change in each, in 3–6 bullet points
+2. In the same response, flag any open questions — missing type signatures, ambiguous behaviour, unclear scope, edge cases. Do not ask questions in a separate turn and do not assume and proceed.
+3. Wait for explicit approval ("go ahead", "yes", "looks good") before writing anything. Approval also covers the answers to your questions — if Arthur answers them, proceed without asking again.
+
+**While writing code:**
+- Make the minimal change that satisfies the request — no unrequested refactors or additions
+- Follow existing patterns in the file (naming, docstring style, error handling)
+- Respect all hard constraints listed above without exception
+
+**After writing code:**
+- Summarise what was changed and why in 2–4 lines
+- Flag anything that still needs attention or follow-up
+
+**When to ask questions (not proceed):**
+- The request touches multiple files but doesn't specify which one is the source of truth
+- A design decision has non-trivial trade-offs (e.g. where to put a new config, whether to change an interface)
+- The request contradicts a hard constraint or an established pattern
+- Expected behaviour at edge cases is unspecified
+
 ## Running tests
 ```bash
 pytest                          # all tests
